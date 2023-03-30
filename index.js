@@ -1,3 +1,2 @@
-const dbConnect = require("./db/dbConnect");
-
-dbConnect();
+const http = require('http');
+const app = require('./app');
