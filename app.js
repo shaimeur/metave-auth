@@ -5,7 +5,6 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 
-
 app.use(cors({
     origin: 'http://localhost:5173'
 }));
@@ -21,92 +20,65 @@ dbConnect();
 // Middleware to parse JSON request bodies
 app.use(express.json());
 
+// register endpoint
+app.post("/register", async (req, res) => {
+  try {
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const user = new User({
+      email: req.body.email,
+      password: hashedPassword,
+      userName: req.body.userName
+    });
+    const result = await user.save();
+    res.status(201).send({
+      message: "User Created Successfully !!",
+      result
+    });
+  } catch (error) {
+    console.log('error', error);
+    res.status(500).send({
+      message: "Error when creating user !",
+      error
+    });
+  }
+});
 
-// the register endpoint
-app.post("/register" , (req,res)=>{
-    bcrypt.hash(req.body.password,10).
-    then((hashedPassword)=>{
-        const user = new User({
-            email: req.body.email,
-            password : hashedPassword   ,
-            userName : req.body.userName
-        });
-        user.save().
-        then((result)=>{
-            res.status(201).send({
-                message : "User Created Succefully !!",
-                result
-            })
-        }).catch((e)=>{
-            console.log('e',e);
-            res.status(500).send({
-                message : "Error when creating user !",
-                e
-            })
-        })
-    }).
-    catch((e) =>{
-        console.log('e',e);
-        res.status(500).send({
-            message : "password have been not hashed!!",
-            e
-        })
-    })
-})
-
-// the login endpoint
-
-app.post("/login",(req,res)=>{
-        // cheking the email if it's exists
-        User.findOne({email: req.body.email}).
-
-        // if email exists
-        then((user)=>{
-            // compare the password  entred and the hashed password found
-            bcrypt.compare(req.body.password, user.password)
-
-            //if the password match
-            .then((passwordCheck)=>{
-                // check if password matches
-                if(!passwordCheck){
-                    return res.status(400).send({
-                        message : "Password doesn't match !!",
-                        error,
-                    })
-                }
-                // create token
-                const token = jwt.sign(
-                    {
-                        userId : user._id,
-                        userEmail : user.email ,
-                    },
-                    "RANDOM-TOKEN",
-                    {expiresIn : "24h"}
-                );
-
-                // return success response !!
-                res.status(200).send({
-                    message :" Login Successuful ",
-                    email : user.email ,
-                    token
-                })
-            })
-            //catch error if password doesn't match
-            .catch((e)=>{
-                logger.log('e',e);
-                res.status(400).send({
-                    message : "Password doesn't match ",
-                    e ,
-                })
-            })
-        })
-        .catch((e) =>{  //          catch error if email  doesn't exist
-            res.status(404).send({
-                message : "Email not found",
-                e
-            });
-        });
-})
+// login endpoint
+app.post("/login", async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      return res.status(404).send({
+        message: "Email not found"
+      });
+    }
+    const passwordCheck = await bcrypt.compare(req.body.password, user.password);
+    if (!passwordCheck) {
+      return res.status(400).send({
+        message: "Password doesn't match !!"
+      });
+    }
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        userEmail: user.email
+      },
+      "RANDOM-TOKEN",
+      { expiresIn: "24h" }
+    );
+    res.status(200).send({
+      message: "Login Successful",
+      email: user.email,
+      token
+    });
+  } catch (error) {
+    console.log('error', error);
+    res.status(500).send({
+      message: "Error when logging in!",
+      error
+    });
+  }
+});
 
 // Start listening for incoming HTTP requests
 app.listen(3000, () => {
